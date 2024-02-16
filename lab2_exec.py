@@ -32,17 +32,19 @@ Q13 = [129.70*pi/180.0, -58.87*pi/180.0, 142.19*pi/180.0, -176.96*pi/180.0, -89.
 Q21 = [149.17*pi/180.0, -84.77*pi/180.0, 138.41*pi/180.0, -137.91*pi/180.0, -91.90*pi/180.0, 50.52*pi/180.0]
 Q22 = [149.20*pi/180.0, -76.68*pi/180.0, 140.99*pi/180.0, -148.57*pi/180.0, -91.89*pi/180.0, 50.50*pi/180.0]
 Q23 = [148.93*pi/180.0, -64.82*pi/180.0, 144.62*pi/180.0, -164.09*pi/180.0, -91.91*pi/180.0, 50.16*pi/180.0]
-Q20=  [146.10*pi/180.0, -104.36*pi/180.0, 118.38*pi/180.0, -101.40*pi/180.0, -91.80*pi/180.0, 26.49*pi/180.0]
+
 # Hanoi tower location 3
 Q31 = [169.34*pi/180.0, -82.80*pi/180.0, 138.89*pi/180.0, -146.34*pi/180.0, -90*pi/180.0, 49.44*pi/180.0]
 Q32 = [169.37*pi/180.0, -71.66*pi/180.0, 141.71*pi/180.0, -160.31*pi/180.0, -90.05*pi/180.0, 49.41*pi/180.0]
 Q33 = [169.55*pi/180.0, -61.34*pi/180.0, 143.04*pi/180.0, -171.97*pi/180.0, -90.04*pi/180.0, 49.54*pi/180.0]
-Q30=  [169.39*10*pi/180.0, -101.82*pi/180.0, 115.96*pi/180.0, -101.12*pi/180.0, -90.65*pi/180.0, 49.75*pi/180.0]
+
 
 thetas = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 digital_in_0 = 0
 analog_in_0 = 0
+
+checking_block =0
 
 suction_on = True
 suction_off = False
@@ -69,15 +71,12 @@ Q = [ [Q11, Q12, Q13], \
 TODO: define a ROS topic callback funtion for getting the state of suction cup
 Whenever ur3/gripper_input publishes info this callback function is called.
 """
-def gripper_state(msg):
+def gripper_callback(msg):
     global digital_in_0
     global analog_in_0
-    if(msg.DIGIN):
-        digital_in_0=1
-    else:
-        digital_in_0=0
-    
-############### Your Code End Here ###############
+    global checking_block
+    checking_block = msg.DIGIN
+ 
 """
 Whenever ur3/position publishes info, this callback function is called.
 """
@@ -164,7 +163,7 @@ def move_arm(pub_cmd, loop_rate, dest, vel, accel):
     driver_msg.io_0 = current_io_0
     pub_cmd.publish(driver_msg)
 
-    time.sleep(1)
+    time.sleep(0.5)
 
     while(at_goal == 0):
 
@@ -178,7 +177,7 @@ def move_arm(pub_cmd, loop_rate, dest, vel, accel):
             at_goal = 1
             rospy.loginfo("Goal is reached!")
 
-        time.sleep(1)
+        time.sleep(0.5)
 
         if(spin_count >  SPIN_RATE*5):
 
@@ -196,21 +195,22 @@ def move_arm(pub_cmd, loop_rate, dest, vel, accel):
 def move_block(pub_cmd, loop_rate, start_loc, start_height, \
                end_loc, end_height):
     global Q
-
+    global checking_block
     ### Hint: Use the Q array to map out your towers by location and "height".
-    error = 0
     move_arm(pub_cmd, loop_rate, Q[start_loc][2 - start_height], 4.0, 4.0)
-    error = gripper(pub_cmd, loop_rate, suction_on)
-    time.sleep(1.0)
-    if error:
-        return error  
-    time.sleep(1.0)
+    gripper(pub_cmd, loop_rate, suction_on)
+    time.sleep(0.5)
+    print("CHECKING BLOCK :", checking_block)
+    if(checking_block==0):
+        gripper(pub_cmd, loop_rate, 0)
+        time.sleep(0.5)
+        sys.exit()
     move_arm(pub_cmd, loop_rate, home, 4.0, 4.0)
     move_arm(pub_cmd, loop_rate, Q[end_loc][2 - end_height], 4.0, 4.0)
     gripper(pub_cmd, loop_rate, suction_off)
-    time.sleep(1.0)
+    time.sleep(0.5)
     move_arm(pub_cmd, loop_rate, home, 4.0, 4.0)
-    return error
+    
 ############### Your Code End Here ###############
 
 
@@ -232,16 +232,19 @@ def main():
 
     ############## Your Code Start Here ##############
     # TODO: define a ROS subscriber for ur3/gripper_input message and corresponding callback function
-    my_gripper_state=rospy.Subscriber('ur3/gripper',gripper_input,gripper_state)
+    # my_gripper_state=rospy.Subscriber('ur3/gripper', gripper_input, gripper_state)
+    my_gripper_state=rospy.Subscriber('ur3/gripper_input', gripper_input, gripper_callback)
     ############### Your Code End Here ###############
     ############## Your Code Start Here ##############
     # TODO: modify the code below so that program can get user input
     input_start = 0
     input_done=0
+    input_end=0
     while(not input_done):
-        input_string = input("Enter number for start <Either 1 2 3 or 0 to quit> ")
-        print("You entered " + input_string + "\n")
-
+        input_string = input("Enter number for start <Either 1, 1 2 3 or 0 to quit> ")
+        input_end = input("Enter number for end <Either 1, 1 2 3 or 0 to quit> ")
+        print("You entered " + input_string + " " + input_end + "\n")
+        input_end = int(input_end)
         if(int(input_string) == 1):
             input_start = 1
             input_done=1
@@ -268,37 +271,68 @@ def main():
     while(loop_count > 0):  
         move_arm(pub_command, input_start, home, 4.0, 4.0)
         if(input_start==1):
-            rospy.loginfo("Sending goal 1 ...")
-            move_block(pub_command,loop_rate, input_start-1,input_start+1,input_start+1,input_start-1)
-            move_block(pub_command,loop_rate,input_start-1,input_start,input_start,input_start-1)
-            move_block(pub_command,loop_rate,input_start+1,input_start-1,input_start,input_start)
-            move_block(pub_command,loop_rate,input_start-1,input_start-1,input_start+1,input_start-1)
-            move_block(pub_command,loop_rate,input_start,input_start,input_start-1,input_start-1)
-            move_block(pub_command,loop_rate,input_start,input_start-1,input_start+1,input_start)
-            move_block(pub_command,loop_rate,input_start-1,input_start-1,input_start+1,input_start+1)
+            if(input_end==3):
+                rospy.loginfo("Sending goal 1 3...")
+                # my_gripper_state=rospy.Subscriber('ur3/gripper', gripper_input, gripper_state)
+                move_block(pub_command,loop_rate, input_start-1,input_start+1,input_start+1,input_start-1)
+                move_block(pub_command,loop_rate,input_start-1,input_start,input_start,input_start-1)
+                move_block(pub_command,loop_rate,input_start+1,input_start-1,input_start,input_start)
+                move_block(pub_command,loop_rate,input_start-1,input_start-1,input_start+1,input_start-1)
+                move_block(pub_command,loop_rate,input_start,input_start,input_start-1,input_start-1)
+                move_block(pub_command,loop_rate,input_start,input_start-1,input_start+1,input_start)
+                move_block(pub_command,loop_rate,input_start-1,input_start-1,input_start+1,input_start+1)
+            elif(input_end==2):
+                rospy.loginfo("Sending goal 1 2...")
+                move_block(pub_command,loop_rate, input_start-1,input_start+1,input_start,input_start-1)
+                move_block(pub_command,loop_rate,input_start-1,input_start,input_start+1,input_start-1)
+                move_block(pub_command,loop_rate,input_start,input_start-1,input_start+1,input_start)
+                move_block(pub_command,loop_rate,input_start-1,input_start-1,input_start,input_start-1)
+                move_block(pub_command,loop_rate,input_start+1,input_start,input_start-1,input_start-1)
+                move_block(pub_command,loop_rate,input_start+1,input_start-1,input_start,input_start)
+                move_block(pub_command,loop_rate,input_start-1,input_start-1,input_start,input_start+1)
+                
         if(input_start==2):
-            rospy.loginfo("Sending goal 2 ...")
-            move_block(pub_command,loop_rate, input_start-1,input_start,input_start,input_start-2)
-            move_block(pub_command,loop_rate, input_start-1,input_start-1,input_start-2,input_start-2)
-            move_block(pub_command,loop_rate, input_start,input_start-2,input_start-2,input_start-1)
-            move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start,input_start-2)
-            move_block(pub_command,loop_rate, input_start-2,input_start-1,input_start-1,input_start-2)
-            move_block(pub_command,loop_rate, input_start-2,input_start-2,input_start,input_start-1)
-            move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start,input_start)
+            if(input_end==3):
+                rospy.loginfo("Sending goal 2 3 ...")
+                move_block(pub_command,loop_rate, input_start-1,input_start,input_start,input_start-2)
+                move_block(pub_command,loop_rate, input_start-1,input_start-1,input_start-2,input_start-2)
+                move_block(pub_command,loop_rate, input_start,input_start-2,input_start-2,input_start-1)
+                move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start,input_start-2)
+                move_block(pub_command,loop_rate, input_start-2,input_start-1,input_start-1,input_start-2)
+                move_block(pub_command,loop_rate, input_start-2,input_start-2,input_start,input_start-1)
+                move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start,input_start)
+            if(input_end==1):
+                rospy.loginfo("Sending goal 2 3 ...")
+                move_block(pub_command,loop_rate, input_start-1,input_start,input_start-2,input_start-2)
+                move_block(pub_command,loop_rate, input_start-1,input_start-1,input_start,input_start-2)
+                move_block(pub_command,loop_rate, input_start-2,input_start-2,input_start,input_start-1)
+                move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start-2,input_start-2)
+                move_block(pub_command,loop_rate, input_start,input_start-1,input_start-1,input_start-2)
+                move_block(pub_command,loop_rate, input_start,input_start-2,input_start-2,input_start-1)
+                move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start-2,input_start)
+            
         if(input_start==3):
-            rospy.loginfo("Sending goal 2 ...")
-            move_block(pub_command,loop_rate, input_start-1,input_start-1,input_start-3,input_start-3)
-            move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start-2,input_start-3)
-            move_block(pub_command,loop_rate, input_start-3,input_start-3,input_start-2,input_start-1)
-            move_block(pub_command,loop_rate, input_start-1,input_start-3,input_start-3,input_start-3)
-            move_block(pub_command,loop_rate, input_start-2,input_start-2,input_start-1,input_start-3)
-            move_block(pub_command,loop_rate, input_start-2,input_start-3,input_start-3,input_start-2)
-            move_block(pub_command,loop_rate, input_start-1,input_start-3,input_start-3,input_start-1)
+            rospy.loginfo("Sending goal 3 1 ...")
+            if (input_end == 1):
+                move_block(pub_command,loop_rate, input_start-1,input_start-1,input_start-3,input_start-3)
+                move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start-2,input_start-3)
+                move_block(pub_command,loop_rate, input_start-3,input_start-3,input_start-2,input_start-2)
+                move_block(pub_command,loop_rate, input_start-1,input_start-3,input_start-3,input_start-3)
+                move_block(pub_command,loop_rate, input_start-2,input_start-2,input_start-1,input_start-3)
+                move_block(pub_command,loop_rate, input_start-2,input_start-3,input_start-3,input_start-2)
+                move_block(pub_command,loop_rate, input_start-1,input_start-3,input_start-3,input_start-1)
+            if (input_end == 2):   
+                rospy.loginfo("Sending goal 3 2 ...")
+                move_block(pub_command,loop_rate, input_start-1,input_start-1,input_start-2,input_start-3)
+                move_block(pub_command,loop_rate, input_start-1,input_start-2,input_start-3,input_start-3)
+                move_block(pub_command,loop_rate, input_start-2,input_start-3,input_start-3,input_start-2)
+                move_block(pub_command,loop_rate, input_start-1,input_start-3,input_start-2,input_start-3)
+                move_block(pub_command,loop_rate, input_start-3,input_start-2,input_start-1,input_start-3)
+                move_block(pub_command,loop_rate, input_start-3,input_start-3,input_start-2,input_start-2)
+                move_block(pub_command,loop_rate, input_start-1,input_start-3,input_start-2,input_start-1)
         
         loop_count = loop_count - 1
     ############### Your Code End Here ###############
-
-
 if __name__ == '__main__':
 
     try:
