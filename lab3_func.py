@@ -11,18 +11,18 @@ Angles are in radian, distance are in meters.
 def Get_MS():
 	# =================== Your code starts here ====================#
 	# Fill in the correct values for S1~6, as well as the M matrix
-    w1=[0,0,1]
-    q1=[-.150,.150,.152]
-    w2=[0,1,0]
-    q2=[-.150,.272,.152]
-    w3=[0,1,0]
-    q3=[.094,.030,.152]
-    w4=[0,1,0]
-    q4=[.307,.180,.152]
-    w5=[-1,0,0]
-    q5=[.307,.260,.152]
-    w6=[-1,0,0]
-    q6=[.39,.26,.152]
+    w1=np.array([0,0,1])
+    q1=np.array([-.150,.150,.0])
+    w2=np.array([0,1,0])
+    q2=np.array([-.150,.270,.162])
+    w3=np.array([0,1,0])
+    q3=np.array([.094,.270,.162])
+    w4=np.array([0,1,0])
+    q4=np.array([.307,.177,.162])
+    w5=np.array([1,0,0])
+    q5=np.array([.307,.260,.162])
+    w6=np.array([0,1,0])
+    q6=np.array([.39,.260,.162])
     V1=np.cross(q1,w1)
     V2=np.cross(q2,w2)
     V3=np.cross(q3,w3)
@@ -35,9 +35,12 @@ def Get_MS():
     S4=np.concatenate((w4,V4),axis=None)
     S5=np.concatenate((w5,V5),axis=None)
     S6=np.concatenate((w6,V6),axis=None)
-    M= [[0,-1, 0,.39], [0,0,-1,.401],[1,0,0,.2155],[0,0,0,1]]
-    S=[S1,S2,S3,S4,S5,S6]
+    M= np.array([[0,-1, 0,.39], [0,0,-1,.401],[1,0,0,.2155],[0,0,0,1]])
+    S=np.array([S1,S2,S3,S4,S5,S6])
     print(S)
+    # print("SHAPES:\n",q1.shape,w1.shape,S1.shape,S.shape)
+    print("S1:\n", S1,S2,S3,S4,S5,S6)
+    print("SSS\n",S[0],S[0][2],S[0][1],S[0][0])
 	# ==============================================================#
     return M, S
 """
@@ -69,11 +72,15 @@ def lab_fk(theta1, theta2, theta3, theta4, theta5, theta6):
 	theta = [theta1, theta2, theta3, theta4, theta5, theta6]
 	result = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
 	for i in range(6):
-		tmps[i] *= theta[i]
+		# print("check:", tmps[i], theta[i])
+		tmps[i] = tmps[i] * theta[i]
+		# print("after:", tmps[i])
 		result = np.matmul(result, expm(tmps[i]))
-
+		# print("RESULTS:", result)
+	# result = expm(tmps[0]) @ expm(tmps[1]) @ expm(tmps[2]) @ expm(tmps[3]) @ expm(tmps[4]) @ expm(tmps[5]) @ M
 	result = np.matmul(result, M)
 	T = result
+	print("M", M)
 
 	# ==============================================================#
 
@@ -87,3 +94,13 @@ def lab_fk(theta1, theta2, theta3, theta4, theta5, theta6):
 	return_value[5] = theta6
 
 	return return_value
+
+'''
+input theta1: 20 -45 105 -60 -90 0
+output p: 0.1343 0.4275 0.009071
+expect p: 0.134 0.427 0.009
+
+input theta2: -105 -105 100 -50 -110 -30
+output p: -0.1266 -0.1697 -0.3772
+expect p: -0.127 -0.170 0.377
+'''
