@@ -84,7 +84,7 @@ def lab_fk(theta1, theta2, theta3, theta4, theta5, theta6):
 
 	# ==============================================================#
 
-	# print(str(T) + "\n")
+	print(str(T) + "\n")
 
 	return_value[0] = theta1 + PI
 	return_value[1] = theta2
@@ -101,42 +101,63 @@ Function that calculates an elbow up Inverse Kinematic solution for the UR3
 def lab_invk(xWgrip, yWgrip, zWgrip, yaw_WgripDegree):
 	# =================== Your code starts here ====================#
 	l = 0.0535
-	xWcen = xWgrip - l * np.sin(yaw_WgripDegree / 180 * np.pi)
-	yWcen = yWgrip - l * np.cos(yaw_WgripDegree / 180 * np.pi)	
-	zWcen = zWgrip
+	xWgrip += 0.15
+	yWgrip -= 0.15
+	xWcen = xWgrip - l * np.cos(yaw_WgripDegree / 180 * np.pi)
+	yWcen = yWgrip - l * np.sin(yaw_WgripDegree / 180 * np.pi)	
+	zWcen = zWgrip -0.01
+
+	print(xWcen, yWcen, zWcen)
+ 
 	l1 = (xWcen ** 2 + yWcen ** 2) ** 0.5
-	tmptheta1 = np.arcsin(0.11/l1)/np.pi * 180
-	tmptheta2 = np.arctan(yWcen/xWcen)/np.pi * 180
+	tmptheta1 = np.arcsin(0.11/l1)/np.pi * 180 # degree
+	tmptheta2 = np.arctan(yWcen/xWcen)/np.pi * 180 # degree
 	tmpl = (l1 ** 2 - 0.11 ** 2) ** 0.5
 	l2 = tmpl - 0.083
 	print(l2)
  
-	theta1 = (tmptheta2 - tmptheta1) / 180 * np.pi
+	theta1 = (tmptheta2 - tmptheta1) / 180 * np.pi # radian
  
  
  
 	x3end = np.cos(theta1) * l2
 	y3end = np.sin(theta1) * l2
-	z3end = zWcen + 0.165
- 
- 
+	z3end = zWcen + 0.059 + 0.082
+	l2 = (l2**2 + (z3end-0.152)**2)**0.5
 
  
-	tmptheta3 = np.arccos((0.244 ** 2 + 0.213 ** 2 - x3end ** 2 - (z3end - 0.152) ** 2) / (2 * 0.244 * 0.213)) 
+	tmptheta3 = np.arccos((0.244 ** 2 + 0.213 ** 2 - l2 ** 2) / (2 * 0.244 * 0.213)) # radian
 
-	theta3 = (180 - tmptheta3/np.pi * 180)/180 * np.pi
+	theta3 = (180 - tmptheta3/np.pi * 180)/180 * np.pi # radian
 
-	tmptheta4 = np.arccos((0.244 ** 2 + x3end ** 2 + (z3end - 0.152) ** 2 - 0.213 ** 2) / (2 * 0.244 * (x3end ** 2 + (z3end - 0.152) ** 2) ** 0.5)) / np.pi * 180
-	tmptheta5 = np.arctan(x3end / (z3end - 0.152)) / np.pi * 180
+	tmptheta4 = np.arccos((0.213 ** 2 + l2 ** 2 - 0.244 ** 2) / (2 * 0.213 * l2)) / np.pi * 180 # degree
+	tmptheta5 = np.arccos((z3end - 0.152)/l2) / np.pi * 180 # degree
 
  
 	
  
-	theta4 = -(tmptheta5 - (90 - tmptheta4))/180 * np.pi
+	theta4 = -(tmptheta5 - (90 - tmptheta4))/180 * np.pi # radian
  
-	theta2 = -(360 - 90 - 90 + theta4 - tmptheta3/np.pi * 180)/180 * np.pi
+	theta2 = -(360 - 90 - 90 + theta4/np.pi*180 - tmptheta3/np.pi * 180)/180 * np.pi #radian
  
 	theta5 = -np.pi/2
-	theta6 = (90 - yaw_WgripDegree + theta1)/180 * np.pi
+	theta6 = (90 - yaw_WgripDegree + theta1/np.pi*180)/180 * np.pi
+	print(theta1, theta2, theta3, theta4, theta5, theta6)
 	# ==============================================================#
 	return lab_fk(theta1, theta2, theta3, theta4, theta5, theta6)
+
+'''
+rosrun lab4pkg_py lab4_exec.py 0.15 0.35 0.2 0:
+[[ 1.00000000e+00 -1.66533454e-16  3.88578059e-16  1.50000000e-01]
+ [ 0.00000000e+00  1.00000000e+00  1.11022302e-16  3.50000000e-01]
+ [-2.62780567e-16 -8.93508327e-17  1.00000000e+00  2.00000000e-01]
+ [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  1.00000000e+00]]
+ 
+rosrun lab4pkg_py lab4_exec.py 0.25 -0.05 0.25 -45:
+[[ 7.07106781e-01  7.07106781e-01  1.34657910e-16  2.50000000e-01]
+ [-7.07106781e-01  7.07106781e-01 -8.80372164e-17 -5.00000000e-02]
+ [ 5.68302671e-17  4.75725625e-18  1.00000000e+00  2.50000000e-01]
+ [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  1.00000000e+00]]
+
+
+'''
